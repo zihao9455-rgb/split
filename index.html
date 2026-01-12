@@ -173,7 +173,7 @@
         if (!input.trim()) return;
 
         // 【核心修改】精准匹配 weixinstorehs/数字 格式
-        const urlRegex = /(weixinstore(?:sub)?hs\/\d+)/g;
+        const urlRegex = /(weixinstore[^\s\u4e00-\u9fa5]+)/g;
         
         // 1. 提取所有链接
         const rawLinks = input.match(urlRegex) || [];
@@ -213,6 +213,7 @@
 
 </body>
 </html>
+
 
 
 
