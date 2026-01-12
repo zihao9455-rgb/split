@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LinkFormatter Pro | 智能去重版</title>
+    <title>LinkFormatter | 实时查重版</title>
     <style>
         :root {
             --primary-color: #07c160;
-            --danger-color: #ff4d4f;
+            --danger-color: #ff4d4f; /* 2026流行的高级感红色 */
             --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             --card-bg: rgba(255, 255, 255, 0.7);
             --text-main: #2c3e50;
@@ -53,9 +53,10 @@
 
         .panel { flex: 1; display: flex; flex-direction: column; gap: 12px; }
 
+        /* 输入框样式 */
         textarea {
             width: 100%;
-            height: 300px;
+            height: 400px;
             padding: 15px;
             border-radius: 12px;
             border: 1px solid rgba(0,0,0,0.1);
@@ -64,78 +65,78 @@
             font-size: 15px;
             box-sizing: border-box;
             outline: none;
+            line-height: 1.6;
         }
 
-        .btn {
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 14px;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
+        /* 结果框样式 */
         .result-card {
             background: var(--card-inner);
             padding: 15px;
             border-radius: 12px;
-            min-height: 100px;
-            max-height: 300px;
+            height: 180px;
             overflow-y: auto;
             border: 1px solid rgba(0,0,0,0.05);
             white-space: pre-wrap;
             word-break: break-all;
             font-size: 14px;
+            line-height: 1.6;
         }
 
-        /* 重复项标红样式 */
+        /* 重复文字标红：使用亮红色并加背景淡红，更有质感 */
         .duplicate {
             color: var(--danger-color);
+            background-color: rgba(255, 77, 79, 0.1);
+            padding: 0 2px;
+            border-radius: 4px;
             font-weight: bold;
-            text-decoration: underline;
         }
 
+        .btn-group { display: flex; gap: 10px; }
         .copy-btn {
+            flex: 1;
             background: rgba(7, 193, 96, 0.1);
             color: var(--primary-color);
             border: 1px solid var(--primary-color);
-            padding: 5px 10px;
-            border-radius: 6px;
-            font-size: 12px;
+            padding: 8px;
+            border-radius: 8px;
             cursor: pointer;
+            font-weight: 500;
         }
 
         .label-row { display: flex; justify-content: space-between; align-items: center; }
+        .tips { font-size: 12px; color: var(--danger-color); font-weight: 500; }
     </style>
 </head>
 <body>
 
 <div class="app-container">
     <div style="text-align: center;">
-        <h2>🔗 链接提取 & 重复检测助手</h2>
-        <p style="font-size: 12px; color: var(--text-sub);">支持 weixinstore 通配提取 | 汉字重复项自动标红</p>
+        <h2>🔗 实时查重排版助手</h2>
+        <p style="font-size: 13px; opacity: 0.8;">粘贴后自动识别 weixinstore 链接并标红重复汉字</p>
     </div>
 
     <div class="main-content">
         <div class="panel">
-            <span>输入混合文案</span>
-            <textarea id="input" placeholder="请在此粘贴文案..."></textarea>
-            <button class="btn" onclick="process()">⚡ 提取并检测重复</button>
+            <div class="label-row">
+                <span>输入内容</span>
+                <span id="charCount" style="font-size: 12px; opacity: 0.6;">字数: 0</span>
+            </div>
+            <textarea id="input" placeholder="直接粘贴多段文案..." oninput="process()"></textarea>
         </div>
 
-        <div class="panel" id="outputSection" style="display: none;">
+        <div class="panel" id="outputSection">
             <div class="label-row">
-                <span>净化文案（红色为汉字重复项）</span>
-                <button class="copy-btn" onclick="forceCopy('pureText')">一键复制文本</button>
+                <span>检测结果</span>
+                <span id="dupAlert" class="tips" style="display:none;">⚠️ 发现重复项</span>
             </div>
-            <div id="pureText" class="result-card"></div>
+            <div id="pureText" class="result-card" style="height: 230px;"></div>
+            <button class="copy-btn" onclick="forceCopy('pureText')">复制净化文案</button>
 
-            <div class="label-row" style="margin-top: 10px;">
-                <span>提取的链接</span>
-                <button class="copy-btn" onclick="forceCopy('links')">一键复制链接</button>
+            <div class="label-row" style="margin-top: 5px;">
+                <span>提取链接</span>
             </div>
-            <div id="links" class="result-card" style="color: #3498db;"></div>
+            <div id="links" class="result-card" style="height: 100px; color: #3498db;"></div>
+            <button class="copy-btn" onclick="forceCopy('links')">复制全部链接</button>
         </div>
     </div>
 </div>
@@ -143,105 +144,76 @@
 <script>
     function process() {
         const input = document.getElementById('input').value;
-        if (!input.trim()) return;
+        const charCountEl = document.getElementById('charCount');
+        const dupAlert = document.getElementById('dupAlert');
+        
+        charCountEl.innerText = `字数: ${input.length}`;
+        if (!input.trim()) {
+            document.getElementById('pureText').innerHTML = "";
+            document.getElementById('links').innerText = "";
+            dupAlert.style.display = "none";
+            return;
+        }
 
-        // 通配正则：匹配所有带 weixinstore 的链接部分
+        // 1. 正则：匹配所有带 weixinstore 的链接部分
         const urlRegex = /(weixinstore[^\s\u4e00-\u9fa5]+)/g;
         
-        // 提取链接并去重
+        // 2. 提取并去重链接
         const allLinks = input.match(urlRegex) || [];
         const uniqueLinks = [...new Set(allLinks)];
 
-        // 处理文字：按行检测汉字重复
+        // 3. 实时查重算法：按行对比描述文字
         const lines = input.split('\n');
         const seenTexts = new Set();
         let htmlResult = "";
+        let hasDuplicate = false;
 
-        lines.forEach(line => {
-            if (!line.trim()) {
-                htmlResult += "\n";
-                return;
-            }
-
-            // 提取该行中的汉字描述部分（去掉链接部分）
+        lines.forEach((line, index) => {
+            // 提取该行去除链接后的纯汉字部分
             let textPart = line.replace(urlRegex, '').trim();
             let linksInLine = line.match(urlRegex) || [];
 
             if (textPart) {
-                // 如果汉字描述已经出现过，标红
+                // 如果该行文字（去空格后）之前出现过，则标红
                 if (seenTexts.has(textPart)) {
                     htmlResult += `<span class="duplicate">${textPart}</span>`;
+                    hasDuplicate = true;
                 } else {
                     htmlResult += textPart;
                     seenTexts.add(textPart);
                 }
             }
             
-            // 补回链接占位符
-            linksInLine.forEach(() => htmlResult += " [链接] ");
+            // 补回占位符
+            linksInLine.forEach(() => htmlResult += " <small style='opacity:0.5'>[链接]</small> ");
             htmlResult += "\n";
         });
 
+        // 4. 更新 DOM
         document.getElementById('pureText').innerHTML = htmlResult;
         document.getElementById('links').innerText = uniqueLinks.join('\n');
-        document.getElementById('outputSection').style.display = 'flex';
+        dupAlert.style.display = hasDuplicate ? "inline" : "none";
     }
 
-    /**
-     * 强力复制函数：三重保障
-     */
+    // 强力复制：解决本地 file:// 协议无法复制的问题
     function forceCopy(elementId) {
         const el = document.getElementById(elementId);
-        const text = el.innerText; // 获取纯文本，不带 HTML 标签
+        const text = el.innerText; // 只获取纯文本
 
-        // 1. 尝试现代 Clipboard API
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(text).then(() => {
-                feedback(event.target);
-            }).catch(() => {
-                fallbackCopy(text, event.target);
-            });
-        } else {
-            // 2. 尝试传统 execCommand 方案
-            fallbackCopy(text, event.target);
-        }
-    }
-
-    function fallbackCopy(text, btn) {
         const textArea = document.createElement("textarea");
         textArea.value = text;
         document.body.appendChild(textArea);
-        textArea.focus();
         textArea.select();
         try {
-            const successful = document.execCommand('copy');
-            if (successful) {
-                feedback(btn);
-            } else {
-                throw new Error();
-            }
+            document.execCommand('copy');
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = "✅ 已复制成功";
+            setTimeout(() => btn.innerText = originalText, 1500);
         } catch (err) {
-            // 3. 最终方案：如果自动复制都失败，全选文本让用户按 Ctrl+C
-            alert("由于浏览器安全限制，请手动复制选中的文字");
-            const range = document.createRange();
-            const target = document.getElementById(btn.getAttribute('onclick').match(/'([^']+)'/)[1]);
-            window.getSelection().removeAllRanges();
-            range.selectNodeContents(target);
-            window.getSelection().addRange(range);
+            alert("请手动选择复制");
         }
         document.body.removeChild(textArea);
-    }
-
-    function feedback(btn) {
-        const oldText = btn.innerText;
-        btn.innerText = "已成功复制！";
-        btn.style.background = "var(--primary-color)";
-        btn.style.color = "white";
-        setTimeout(() => {
-            btn.innerText = oldText;
-            btn.style.background = "";
-            btn.style.color = "";
-        }, 1500);
     }
 </script>
 
