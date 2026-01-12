@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LinkFormatter | 智能查重排版</title>
+    <title>LinkFormatter | 多色查重版</title>
     <style>
         :root {
-            --primary-color: #07c160;
-            --danger-color: #ff4d4f;
             --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             --card-bg: rgba(255, 255, 255, 0.7);
             --text-main: #2c3e50;
@@ -52,7 +50,7 @@
 
         .panel { flex: 1; display: flex; flex-direction: column; gap: 12px; }
 
-        /* 核心修改：输入框文字加粗，字号加大，适合远程查看 */
+        /* 输入内容加粗，提升 1.5m 远距离观看质感 */
         textarea {
             width: 100%;
             height: 400px;
@@ -62,13 +60,11 @@
             background: var(--card-inner);
             color: var(--text-main);
             font-size: 17px; 
-            font-weight: bold; /* 输入内容加粗 */
+            font-weight: bold;
             line-height: 1.8;
             box-sizing: border-box;
             outline: none;
-            transition: border 0.3s;
         }
-        textarea:focus { border-color: var(--primary-color); }
 
         .result-card {
             background: var(--card-inner);
@@ -80,18 +76,19 @@
             white-space: pre-wrap;
             word-break: break-all;
             font-size: 15px;
-            font-weight: bold; /* 结果也默认加粗，提升质感 */
+            font-weight: bold;
         }
 
-        /* 重复项标红样式 */
-        .duplicate {
-            color: var(--danger-color);
+        /* 动态重复项的基础样式 */
+        .duplicate-tag {
+            padding: 0 4px;
+            border-radius: 4px;
             text-decoration: underline;
-            background: rgba(255, 77, 79, 0.1);
+            margin: 0 1px;
         }
 
         .copy-btn {
-            background: var(--primary-color);
+            background: #07c160;
             color: white;
             border: none;
             padding: 12px;
@@ -107,19 +104,19 @@
 
 <div class="app-container">
     <div style="text-align: center;">
-        <h2>🔗 智能排版助手 Pro</h2>
-        <p style="font-size: 12px; opacity: 0.7;">自动加粗 | 2字重复检测 | 白名单过滤</p>
+        <h2>🔗 智能排版助手 (多色区分版)</h2>
+        <p style="font-size: 12px; opacity: 0.7;">不同重复项分配不同颜色 | 链接、换新已设为白名单</p>
     </div>
 
     <div class="main-content">
         <div class="panel">
-            <div class="label-row"><span>文案输入区</span></div>
-            <textarea id="input" placeholder="直接粘贴文案，自动检测重复..." oninput="process()"></textarea>
+            <div class="label-row"><span>文案输入区 (加粗)</span></div>
+            <textarea id="input" placeholder="粘贴文案后自动处理..." oninput="process()"></textarea>
         </div>
 
         <div class="panel">
             <div class="label-row">
-                <span>处理结果 (重复项标红)</span>
+                <span>处理结果 (多色区分)</span>
                 <button class="copy-btn" style="padding: 5px 15px;" onclick="forceCopy('pureText')">复制结果</button>
             </div>
             <div id="pureText" class="result-card"></div>
@@ -131,8 +128,19 @@
 </div>
 
 <script>
-    // 白名单设置
+    // 1. 白名单配置
     const whitelist = ["链接", "换新", "接换", "新链", "用这"];
+
+    // 2. 预设质感色板 (文字颜色, 背景颜色)
+    const colorPalette = [
+        { text: "#ff4d4f", bg: "rgba(255, 77, 79, 0.15)" }, // 珊瑚红
+        { text: "#1890ff", bg: "rgba(24, 144, 255, 0.15)" }, // 宝石蓝
+        { text: "#722ed1", bg: "rgba(114, 46, 209, 0.15)" }, // 罗兰紫
+        { text: "#fa8c16", bg: "rgba(250, 140, 22, 0.15)" }, // 琥珀橙
+        { text: "#13c2c2", bg: "rgba(19, 194, 194, 0.15)" }, // 明青色
+        { text: "#eb2f96", bg: "rgba(235, 47, 150, 0.15)" }, // 胭脂粉
+        { text: "#2f54eb", bg: "rgba(47, 84, 235, 0.15)" }   // 极客蓝
+    ];
 
     function process() {
         const input = document.getElementById('input').value;
@@ -146,29 +154,33 @@
         const allLinks = input.match(urlRegex) || [];
         const uniqueLinks = [...new Set(allLinks)];
         
-        // 1. 提取所有纯汉字内容用于统计频率
+        // 提取纯汉字部分统计频率
         const pureTextContent = input.replace(urlRegex, '');
         const charCounts = {};
         
-        // 扫描所有长度为2的字符串片段（滑动窗口）
+        // 滑动窗口扫描 2 个汉字的组合
         for (let i = 0; i < pureTextContent.length - 1; i++) {
             const pair = pureTextContent.substr(i, 2);
-            // 过滤非汉字字符和白名单内容
             if (/[\u4e00-\u9fa5]{2}/.test(pair) && !whitelist.includes(pair)) {
                 charCounts[pair] = (charCounts[pair] || 0) + 1;
             }
         }
 
-        // 找出重复次数 > 1 的词组
+        // 筛选出重复项并分配颜色
         const duplicates = Object.keys(charCounts).filter(k => charCounts[k] > 1);
+        const colorMap = {};
+        duplicates.forEach((word, index) => {
+            colorMap[word] = colorPalette[index % colorPalette.length];
+        });
 
-        // 2. 渲染结果：对重复词组进行标红
+        // 渲染结果
         let displayHtml = input.replace(urlRegex, ' [链接] ');
         
-        // 为了避免 HTML 标签嵌套错误，我们先处理重复项
-        duplicates.forEach(word => {
+        // 按照词组长度倒序替换，防止短词破坏长词的 HTML 标签 (虽然这里都是2个字)
+        duplicates.sort((a, b) => b.length - a.length).forEach(word => {
+            const color = colorMap[word];
             const regex = new RegExp(word, 'g');
-            displayHtml = displayHtml.replace(regex, `<span class="duplicate">${word}</span>`);
+            displayHtml = displayHtml.replace(regex, `<span class="duplicate-tag" style="color: ${color.text}; background: ${color.bg};">${word}</span>`);
         });
 
         document.getElementById('pureText').innerHTML = displayHtml;
@@ -178,11 +190,10 @@
     function forceCopy(id) {
         const text = document.getElementById(id).innerText;
         navigator.clipboard.writeText(text).then(() => {
-            alert("已复制成功！");
+            alert("✅ 净化文案已成功复制！");
         });
     }
 </script>
 
 </body>
 </html>
-
