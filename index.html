@@ -88,16 +88,16 @@
                         value="备, 接, 用这, 这个, 链接, 换新, 价格, 新, 链"
                         placeholder="输入屏蔽词...">
                 </div>
-                <p class="text-[10px] text-slate-400 mt-1">* 规则：支持嵌套检测。包含白名单字符的项不标注。链接替换为 &lt;链接&gt;。</p>
+                <p class="text-[10px] text-slate-400 mt-1">* 系统会自动实时检测。规则：支持嵌套检测，包含白名单字符的项不标注。</p>
             </div>
 
             <div class="flex gap-2">
-                <button onclick="clearText()" class="px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors">
-                    清除
+                <button onclick="clearText()" class="px-4 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-200 transition-all">
+                    清空全部
                 </button>
-                <button onclick="processText()" class="px-5 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-all">
-                    开始分析
-                </button>
+                <div class="flex items-center text-xs text-blue-600 font-medium px-2 italic">
+                    <span id="statusIcon" class="mr-1">●</span> 实时同步中
+                </div>
             </div>
         </header>
 
@@ -106,10 +106,10 @@
             <!-- 左侧：输入 -->
             <div class="flex-1 flex flex-col bg-white rounded-xl border shadow-sm overflow-hidden">
                 <div class="px-4 py-2 border-b bg-slate-50 text-xs font-semibold text-slate-500 uppercase flex justify-between">
-                    <span>原始文本</span>
+                    <span>原始文本输入</span>
                     <span id="charCount">0 字</span>
                 </div>
-                <textarea id="inputText" class="flex-1 p-4 outline-none resize-none text-slate-700 leading-relaxed custom-scrollbar" placeholder="粘贴内容..."></textarea>
+                <textarea id="inputText" class="flex-1 p-4 outline-none resize-none text-slate-700 leading-relaxed custom-scrollbar" placeholder="在此粘贴您的文本，分析将自动进行..."></textarea>
             </div>
 
             <!-- 右侧：结果 -->
@@ -126,18 +126,18 @@
                         </button>
                     </div>
                     <div id="linksOutput" class="flex-1 p-4 overflow-y-auto custom-scrollbar text-sm text-blue-600 font-mono">
-                        <p class="text-slate-400 italic text-xs">尚未提取到链接</p>
+                        <p class="text-slate-400 italic text-xs">等待输入...</p>
                     </div>
                 </div>
 
                 <!-- 重复项面板 -->
                 <div class="flex-1 flex flex-col bg-white rounded-xl border shadow-sm overflow-hidden">
                     <div class="px-4 py-2 border-b bg-slate-50 flex justify-between items-center">
-                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">重复高亮 (支持嵌套)</span>
+                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">重复高亮 (实时嵌套分析)</span>
                         <span id="repeatCount" class="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-bold">0 个重复</span>
                     </div>
                     <div id="highlightResult" class="flex-1 p-6 overflow-y-auto custom-scrollbar highlight-box text-slate-700">
-                        <p class="text-slate-400 italic text-xs">分析结果将显示在这里...</p>
+                        <p class="text-slate-400 italic text-xs">分析结果将在此实时呈现...</p>
                     </div>
                 </div>
             </div>
@@ -152,6 +152,7 @@
         ];
 
         let currentExtractedLinks = [];
+        let debounceTimer;
 
         function showToast(msg) {
             const toast = document.getElementById('toast');
@@ -176,11 +177,32 @@
             document.getElementById('charCount').innerText = `${text.length} 字`;
         }
 
-        document.getElementById('inputText').addEventListener('input', updateCharCount);
+        // 自动触发器：输入即分析（带 300ms 防抖）
+        function autoProcess() {
+            const statusIcon = document.getElementById('statusIcon');
+            statusIcon.classList.add('animate-pulse');
+            
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                processText();
+                statusIcon.classList.remove('animate-pulse');
+            }, 300);
+        }
+
+        document.getElementById('inputText').addEventListener('input', () => {
+            updateCharCount();
+            autoProcess();
+        });
+
+        document.getElementById('whitelistInput').addEventListener('input', autoProcess);
 
         function processText() {
             const text = document.getElementById('inputText').value;
-            if (!text.trim()) return;
+            if (!text.trim()) {
+                document.getElementById('linksOutput').innerHTML = '<p class="text-slate-400 italic text-xs">等待输入...</p>';
+                document.getElementById('highlightResult').innerHTML = '<p class="text-slate-400 italic text-xs">分析结果将在此实时呈现...</p>';
+                return;
+            }
             extractLinks(text);
             highlightRepeats(text);
         }
@@ -223,11 +245,9 @@
             const whitelistStr = document.getElementById('whitelistInput').value;
             const userWhitelist = whitelistStr.split(/[,，\s]+/).filter(x => x.length > 0);
 
-            // 1. 替换链接
             const linkRegex = /weixinstore[a-zA-Z0-9.\-_~:/?#[\]@!$&'()*+,;=]+/g;
             let processedText = text.replace(linkRegex, '<链接>');
 
-            // 2. 发现所有重复项 (移除 alreadyCovered 限制以支持嵌套识别)
             const minLen = 2; 
             let repeats = new Map();
             const maxScanLen = Math.min(processedText.length, 20);
@@ -237,7 +257,6 @@
                     let sub = processedText.substring(i, i + len);
                     if (!/^[\u4e00-\u9fa5]+$/.test(sub)) continue;
 
-                    // 模糊屏蔽
                     const isForbidden = userWhitelist.some(item => sub.includes(item));
                     if (isForbidden) continue;
 
@@ -249,7 +268,6 @@
                     }
 
                     if (count > 1) {
-                        // 存储重复项，如果已存在同字串则不重复添加
                         if (!repeats.has(sub)) repeats.set(sub, count);
                     }
                 }
@@ -263,25 +281,20 @@
                 return;
             }
 
-            // 3. 嵌套渲染逻辑
-            // 按长度从长到短排序
             repeatKeys.sort((a, b) => b.length - a.length);
 
-            // 记录所有待渲染的模式对象
             let patternObjects = repeatKeys.map((p, i) => ({
                 text: p,
                 id: `___MARK_${i}___`,
                 color: colors[i % colors.length],
                 count: repeats.get(p),
-                html: p // 初始 HTML 就是文本本身
+                html: p 
             }));
 
-            // 关键点：让短模式在长模式的 HTML 中再次进行替换（实现嵌套）
             for (let i = 0; i < patternObjects.length; i++) {
                 let longer = patternObjects[i];
                 for (let j = i + 1; j < patternObjects.length; j++) {
                     let shorter = patternObjects[j];
-                    // 如果长词包含短词，在长词的 html 属性里进行替换标记
                     if (longer.text.includes(shorter.text)) {
                         const regex = new RegExp(shorter.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
                         longer.html = longer.html.replace(regex, shorter.id);
@@ -289,14 +302,12 @@
                 }
             }
 
-            // 在全文中进行占位符替换
             let finalDisplay = processedText.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
             patternObjects.forEach(obj => {
                 const regex = new RegExp(obj.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
                 finalDisplay = finalDisplay.replace(regex, obj.id);
             });
 
-            // 递归还原所有占位符
             function resolveMarkers(inputHtml) {
                 let changed = true;
                 while (changed) {
@@ -311,10 +322,7 @@
             }
 
             finalDisplay = resolveMarkers(finalDisplay);
-
-            // 美化链接占位符
             finalDisplay = finalDisplay.replace(/&lt;链接&gt;/g, '<span class="text-blue-600 font-bold border-b border-blue-200">&lt;链接&gt;</span>');
-
             document.getElementById('highlightResult').innerHTML = finalDisplay;
         }
 
