@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LinkFormatter | 实时查重版</title>
+    <title>LinkFormatter | 智能查重排版</title>
     <style>
         :root {
             --primary-color: #07c160;
-            --danger-color: #ff4d4f; /* 2026流行的高级感红色 */
+            --danger-color: #ff4d4f;
             --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             --card-bg: rgba(255, 255, 255, 0.7);
             --text-main: #2c3e50;
@@ -32,7 +32,6 @@
             justify-content: center;
             align-items: center;
             padding: 20px;
-            color: var(--text-main);
         }
 
         .app-container {
@@ -53,7 +52,7 @@
 
         .panel { flex: 1; display: flex; flex-direction: column; gap: 12px; }
 
-        /* 输入框样式 */
+        /* 核心修改：输入框文字加粗，字号加大，适合远程查看 */
         textarea {
             width: 100%;
             height: 400px;
@@ -62,164 +61,127 @@
             border: 1px solid rgba(0,0,0,0.1);
             background: var(--card-inner);
             color: var(--text-main);
-            font-weight: bold;          /* 字体加粗 */
-            font-size: 16px;            /* 稍微调大字号，加粗后更清晰 */
-            line-height: 1.8;           /* 增加行高，防止文字挤在一起 */
-            letter-spacing: 0.5px;      /* 增加一点字间距，提升高级感 */
+            font-size: 17px; 
+            font-weight: bold; /* 输入内容加粗 */
+            line-height: 1.8;
             box-sizing: border-box;
             outline: none;
-            line-height: 1.6;
+            transition: border 0.3s;
         }
+        textarea:focus { border-color: var(--primary-color); }
 
-        /* 结果框样式 */
         .result-card {
             background: var(--card-inner);
             padding: 15px;
             border-radius: 12px;
-            height: 180px;
+            height: 250px;
             overflow-y: auto;
             border: 1px solid rgba(0,0,0,0.05);
             white-space: pre-wrap;
             word-break: break-all;
-            font-size: 14px;
-            line-height: 1.6;
+            font-size: 15px;
+            font-weight: bold; /* 结果也默认加粗，提升质感 */
         }
 
-        /* 重复文字标红：使用亮红色并加背景淡红，更有质感 */
+        /* 重复项标红样式 */
         .duplicate {
             color: var(--danger-color);
-            background-color: rgba(255, 77, 79, 0.1);
-            padding: 0 2px;
-            border-radius: 4px;
-            font-weight: bold;
+            text-decoration: underline;
+            background: rgba(255, 77, 79, 0.1);
         }
 
-        .btn-group { display: flex; gap: 10px; }
         .copy-btn {
-            flex: 1;
-            background: rgba(7, 193, 96, 0.1);
-            color: var(--primary-color);
-            border: 1px solid var(--primary-color);
-            padding: 8px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px;
             border-radius: 8px;
             cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
         }
 
         .label-row { display: flex; justify-content: space-between; align-items: center; }
-        .tips { font-size: 12px; color: var(--danger-color); font-weight: 500; }
     </style>
 </head>
 <body>
 
 <div class="app-container">
     <div style="text-align: center;">
-        <h2>🔗 实时查重排版助手</h2>
-        <p style="font-size: 13px; opacity: 0.8;">粘贴后自动识别 weixinstore 链接并标红重复汉字</p>
+        <h2>🔗 智能排版助手 Pro</h2>
+        <p style="font-size: 12px; opacity: 0.7;">自动加粗 | 2字重复检测 | 白名单过滤</p>
     </div>
 
     <div class="main-content">
         <div class="panel">
-            <div class="label-row">
-                <span>输入内容</span>
-                <span id="charCount" style="font-size: 12px; opacity: 0.6;">字数: 0</span>
-            </div>
-            <textarea id="input" placeholder="直接粘贴多段文案..." oninput="process()"></textarea>
+            <div class="label-row"><span>文案输入区</span></div>
+            <textarea id="input" placeholder="直接粘贴文案，自动检测重复..." oninput="process()"></textarea>
         </div>
 
-        <div class="panel" id="outputSection">
+        <div class="panel">
             <div class="label-row">
-                <span>检测结果</span>
-                <span id="dupAlert" class="tips" style="display:none;">⚠️ 发现重复项</span>
+                <span>处理结果 (重复项标红)</span>
+                <button class="copy-btn" style="padding: 5px 15px;" onclick="forceCopy('pureText')">复制结果</button>
             </div>
-            <div id="pureText" class="result-card" style="height: 230px;"></div>
-            <button class="copy-btn" onclick="forceCopy('pureText')">复制净化文案</button>
-
-            <div class="label-row" style="margin-top: 5px;">
-                <span>提取链接</span>
-            </div>
+            <div id="pureText" class="result-card"></div>
+            
+            <div class="label-row" style="margin-top: 5px;"><span>提取链接</span></div>
             <div id="links" class="result-card" style="height: 100px; color: #3498db;"></div>
-            <button class="copy-btn" onclick="forceCopy('links')">复制全部链接</button>
         </div>
     </div>
 </div>
 
 <script>
+    // 白名单设置
+    const whitelist = ["链接", "换新"];
+
     function process() {
         const input = document.getElementById('input').value;
-        const charCountEl = document.getElementById('charCount');
-        const dupAlert = document.getElementById('dupAlert');
-        
-        charCountEl.innerText = `字数: ${input.length}`;
         if (!input.trim()) {
             document.getElementById('pureText').innerHTML = "";
             document.getElementById('links').innerText = "";
-            dupAlert.style.display = "none";
             return;
         }
 
-        // 1. 正则：匹配所有带 weixinstore 的链接部分
         const urlRegex = /(weixinstore[^\s\u4e00-\u9fa5]+)/g;
-        
-        // 2. 提取并去重链接
         const allLinks = input.match(urlRegex) || [];
         const uniqueLinks = [...new Set(allLinks)];
-
-        // 3. 实时查重算法：按行对比描述文字
-        const lines = input.split('\n');
-        const seenTexts = new Set();
-        let htmlResult = "";
-        let hasDuplicate = false;
-
-        lines.forEach((line, index) => {
-            // 提取该行去除链接后的纯汉字部分
-            let textPart = line.replace(urlRegex, '').trim();
-            let linksInLine = line.match(urlRegex) || [];
-
-            if (textPart) {
-                // 如果该行文字（去空格后）之前出现过，则标红
-                if (seenTexts.has(textPart)) {
-                    htmlResult += `<span class="duplicate">${textPart}</span>`;
-                    hasDuplicate = true;
-                } else {
-                    htmlResult += textPart;
-                    seenTexts.add(textPart);
-                }
+        
+        // 1. 提取所有纯汉字内容用于统计频率
+        const pureTextContent = input.replace(urlRegex, '');
+        const charCounts = {};
+        
+        // 扫描所有长度为2的字符串片段（滑动窗口）
+        for (let i = 0; i < pureTextContent.length - 1; i++) {
+            const pair = pureTextContent.substr(i, 2);
+            // 过滤非汉字字符和白名单内容
+            if (/[\u4e00-\u9fa5]{2}/.test(pair) && !whitelist.includes(pair)) {
+                charCounts[pair] = (charCounts[pair] || 0) + 1;
             }
-            
-            // 补回占位符
-            linksInLine.forEach(() => htmlResult += " <small style='opacity:0.5'>[链接]</small> ");
-            htmlResult += "\n";
+        }
+
+        // 找出重复次数 > 1 的词组
+        const duplicates = Object.keys(charCounts).filter(k => charCounts[k] > 1);
+
+        // 2. 渲染结果：对重复词组进行标红
+        let displayHtml = input.replace(urlRegex, ' [链接] ');
+        
+        // 为了避免 HTML 标签嵌套错误，我们先处理重复项
+        duplicates.forEach(word => {
+            const regex = new RegExp(word, 'g');
+            displayHtml = displayHtml.replace(regex, `<span class="duplicate">${word}</span>`);
         });
 
-        // 4. 更新 DOM
-        document.getElementById('pureText').innerHTML = htmlResult;
+        document.getElementById('pureText').innerHTML = displayHtml;
         document.getElementById('links').innerText = uniqueLinks.join('\n');
-        dupAlert.style.display = hasDuplicate ? "inline" : "none";
     }
 
-    // 强力复制：解决本地 file:// 协议无法复制的问题
-    function forceCopy(elementId) {
-        const el = document.getElementById(elementId);
-        const text = el.innerText; // 只获取纯文本
-
-        const textArea = document.createElement("textarea");
-        textArea.value = text;
-        document.body.appendChild(textArea);
-        textArea.select();
-        try {
-            document.execCommand('copy');
-            const btn = event.target;
-            const originalText = btn.innerText;
-            btn.innerText = "✅ 已复制成功";
-            setTimeout(() => btn.innerText = originalText, 1500);
-        } catch (err) {
-            alert("请手动选择复制");
-        }
-        document.body.removeChild(textArea);
+    function forceCopy(id) {
+        const text = document.getElementById(id).innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            alert("已复制成功！");
+        });
     }
 </script>
 
 </body>
 </html>
-
