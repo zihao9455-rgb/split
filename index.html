@@ -3,14 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>split tool| 两个字重复不标红！仔细检查</title>
+    <title>LinkFormatter Pro | 3字查重旗舰版</title>
     <style>
         :root {
             --primary-color: #007aff;
+            --danger-color: #ff3b30;
             --success-color: #34c759;
             --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             --card-bg: rgba(255, 255, 255, 0.85);
             --text-main: #1c1c1e;
+            --card-inner: #ffffff;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -18,6 +20,7 @@
                 --bg-gradient: linear-gradient(135deg, #1a1c20 0%, #0f1013 100%);
                 --card-bg: rgba(28, 28, 30, 0.9);
                 --text-main: #f2f2f7;
+                --card-inner: #1c1c1e;
             }
         }
 
@@ -25,7 +28,7 @@
             height: 100%;
             margin: 0;
             overflow: hidden;
-            font-family: -apple-system, system-ui, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background: var(--bg-gradient);
         }
 
@@ -42,11 +45,11 @@
         }
 
         .header {
-            padding: 12px 25px;
-            border-bottom: 1px solid rgba(0,0,0,0.1);
+            padding: 12px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
         }
 
         .main-content {
@@ -59,71 +62,86 @@
 
         .panel { display: flex; flex-direction: column; gap: 8px; }
         .input-panel { flex: 2; } 
-        .output-panel { flex: 1; }
+        .output-panel { flex: 1.1; }
 
-        /* 针对 1.5m 距离优化的超粗体输入框 */
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 800;
+            color: var(--text-main);
+            font-size: 15px;
+        }
+
+        /* 针对远距离观看优化的输入框 */
         textarea {
             flex: 1;
             width: 100%;
             padding: 20px;
             border-radius: 12px;
             border: 1px solid rgba(0,0,0,0.1);
-            background: rgba(255,255,255,0.5);
+            background: var(--card-inner);
             color: var(--text-main);
             font-size: 19px; 
-            font-weight: 800; /* 极致加粗 */
-            line-height: 1.6;
+            font-weight: 800; 
+            line-height: 1.7;
             resize: none;
             outline: none;
+            box-sizing: border-box;
+            transition: all 0.2s;
         }
+        textarea:focus { border-color: var(--primary-color); box-shadow: 0 0 0 4px rgba(0,122,255,0.1); }
 
         .result-card {
             flex: 1;
-            background: rgba(255,255,255,0.4);
+            background: var(--card-inner);
             padding: 15px;
             border-radius: 12px;
             overflow-y: auto;
             border: 1px solid rgba(0,0,0,0.05);
             white-space: pre-wrap;
             word-break: break-all;
-            font-size: 16px;
-            font-weight: 700;
+            font-size: 17px;
+            font-weight: 800;
+            line-height: 1.7;
         }
 
         #links {
-            flex: 0.5;
+            flex: 0.6;
             background: rgba(0, 122, 255, 0.08);
             color: var(--primary-color);
-            border: 1px solid var(--primary-color);
+            border: 1px dashed var(--primary-color);
         }
 
-        /* 核心按钮：一键复制提取链接 */
+        /* 核心动作按钮 */
         .copy-link-btn {
             background: var(--primary-color);
             color: white;
             border: none;
             padding: 18px;
-            border-radius: 10px;
+            border-radius: 12px;
             font-size: 18px;
             font-weight: 800;
             cursor: pointer;
-            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
+            transition: transform 0.1s;
         }
-        .copy-link-btn:hover { background: #0056b3; }
+        .copy-link-btn:active { transform: scale(0.97); }
 
         .duplicate-tag {
             padding: 0 2px;
-            border-radius: 3px;
+            border-radius: 4px;
             text-decoration: underline;
         }
 
-        .btn-small {
-            background: transparent;
-            border: 1px solid var(--text-main);
+        .secondary-btn {
+            background: rgba(0,0,0,0.05);
+            border: 1px solid rgba(0,0,0,0.1);
             color: var(--text-main);
-            padding: 4px 10px;
-            border-radius: 5px;
+            padding: 5px 12px;
+            border-radius: 6px;
             font-size: 12px;
+            font-weight: 700;
             cursor: pointer;
         }
     </style>
@@ -132,23 +150,32 @@
 
 <div class="app-container">
     <div class="header">
-        <span style="font-weight: 800; font-size: 18px;">💎 LinkFormatter Pro | 工作终端</span>
-        <div style="font-size: 12px; opacity: 0.6;">阈值: 3字 | 白名单: 用这个/新链接</div>
+        <span style="font-size: 20px; font-weight: 900;">🚀仅两个字重复不标红！！！</span>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <span style="font-size: 12px; opacity: 0.5;">白名单: 用这个、新链接</span>
+            <button class="secondary-btn" onclick="clearAll()">🗑️ 清空内容</button>
+        </div>
     </div>
 
     <div class="main-content">
         <div class="panel input-panel">
-            <textarea id="input" placeholder="请粘贴文案..." oninput="process()"></textarea>
+            <div class="label-row">
+                <span>文案输入区</span>
+                <span id="stat" style="font-size: 12px; opacity: 0.5;">等待粘贴...</span>
+            </div>
+            <textarea id="input" placeholder="在此粘贴原始文案..." oninput="process()"></textarea>
         </div>
 
         <div class="panel output-panel">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-size: 14px; font-weight: 800;">查重预览</span>
-                <button class="btn-small" onclick="copyText('pureText')">复制文案</button>
+            <div class="label-row">
+                <span>查重预览 (3字以上重复标色)</span>
+                <button class="secondary-btn" onclick="copyText('pureText')">复制结果</button>
             </div>
             <div id="pureText" class="result-card"></div>
             
-            <div style="font-size: 14px; font-weight: 800; margin-top: 5px;">提取到的链接</div>
+            <div class="label-row" style="margin-top: 10px;">
+                <span>提取到的链接</span>
+            </div>
             <div id="links" class="result-card"></div>
             
             <button class="copy-link-btn" onclick="copyText('links')">🔗 一键复制提取的链接</button>
@@ -157,27 +184,35 @@
 </div>
 
 <script>
-    // 白名单配置
+    // 1. 白名单配置
     const whitelist = ["用这个", "新链接"];
     
-    // 质感配色方案
-    const palette = [
+    // 2. 质感配色
+    const colorPalette = [
         { t: "#ff3b30", b: "rgba(255, 59, 48, 0.2)" },
         { t: "#5856d6", b: "rgba(88, 86, 214, 0.2)" },
         { t: "#ff9500", b: "rgba(255, 149, 0, 0.2)" },
         { t: "#34c759", b: "rgba(52, 199, 89, 0.2)" },
         { t: "#af52de", b: "rgba(175, 82, 222, 0.2)" },
-        { t: "#007aff", b: "rgba(0, 122, 255, 0.2)" }
+        { t: "#5ac8fa", b: "rgba(90, 200, 250, 0.2)" }
     ];
+
+    function clearAll() {
+        document.getElementById('input').value = "";
+        process();
+    }
 
     function process() {
         const input = document.getElementById('input').value;
+        document.getElementById('stat').innerText = `已输入 ${input.length} 字`;
+        
         if (!input.trim()) {
             document.getElementById('pureText').innerHTML = "";
             document.getElementById('links').innerText = "";
             return;
         }
 
+        // 提取链接
         const urlRegex = /(weixinstore[^\s\u4e00-\u9fa5]+)/g;
         const allLinks = input.match(urlRegex) || [];
         const uniqueLinks = [...new Set(allLinks)];
@@ -186,61 +221,62 @@
         const textOnly = input.replace(urlRegex, ' ');
         const duplicates = findDuplicates(textOnly, 3);
 
-        // 颜色映射
+        // 建立颜色映射
         const colorMap = {};
         duplicates.forEach((word, i) => {
-            colorMap[word] = palette[i % palette.length];
+            colorMap[word] = colorPalette[i % colorPalette.length];
         });
 
-        // 渲染 HTML
-        let html = input.replace(urlRegex, ' <span style="color:#007aff;opacity:0.6;">[链接]</span> ');
+        // 渲染处理结果
+        let html = input.replace(urlRegex, ' <span style="color:#007aff; opacity:0.6;">[链接]</span> ');
         
-        // 按长度倒序替换，防止子串干扰长串
+        // 按长度倒序替换，防止子串干扰长串（例如重复了“羊胎素精华”，则不单独标红“羊胎素”）
         duplicates.sort((a, b) => b.length - a.length).forEach(word => {
             const c = colorMap[word];
             const regex = new RegExp(word, 'g');
-            html = html.replace(regex, `<span class="duplicate-tag" style="color:${c.t};background:${c.b};">${word}</span>`);
+            html = html.replace(regex, `<span class="duplicate-tag" style="color:${c.t}; background:${c.b};">${word}</span>`);
         });
 
         document.getElementById('pureText').innerHTML = html;
         document.getElementById('links').innerText = uniqueLinks.join('\n');
     }
 
-    // 算法：寻找长度至少为 n 的重复子串
-    function findDuplicates(text, n) {
+    // 滑动窗口查找重复项算法
+    function findDuplicates(text, minLen) {
         const counts = {};
-        const found = [];
-        // 这里采用滑动窗口初步定位，你可以根据工作强度调整 n 的大小
-        for (let len = n; len <= 8; len++) { // 扫描 3-8 字长度的词
+        const results = [];
+        
+        // 扫描长度从 minLen 到 10 的所有可能词组
+        for (let len = minLen; len <= 10; len++) {
             for (let i = 0; i <= text.length - len; i++) {
                 const sub = text.substr(i, len);
-                if (/[\u4e00-\u9fa5]+/.test(sub) && !whitelist.some(w => sub.includes(w))) {
+                // 仅匹配纯汉字，且不在白名单内
+                if (/^[\u4e00-\u9fa5]+$/.test(sub) && !whitelist.some(w => sub.includes(w))) {
                     counts[sub] = (counts[sub] || 0) + 1;
                 }
             }
         }
-        for (const sub in counts) {
-            if (counts[sub] > 1) {
-                // 简单的包含关系过滤，避免重复标红
-                if (!found.some(f => f.includes(sub)) && !found.some(f => sub.includes(f))) {
-                    found.push(sub);
-                } else if (found.some(f => sub.includes(f))) {
-                    // 如果发现更长的重复串，替换掉短的
-                    const idx = found.findIndex(f => sub.includes(f));
-                    found[idx] = sub;
-                }
+
+        // 找出出现次数 > 1 的词
+        const allDups = Object.keys(counts).filter(k => counts[k] > 1);
+        
+        // 过滤包含关系：如果“羊胎素精华”重复了，就不需要单独显示“羊胎素”重复
+        allDups.sort((a, b) => b.length - a.length).forEach(word => {
+            if (!results.some(r => r.includes(word))) {
+                results.push(word);
             }
-        }
-        return [...new Set(found)];
+        });
+        
+        return results;
     }
 
     function copyText(id) {
         const text = document.getElementById(id).innerText;
         navigator.clipboard.writeText(text).then(() => {
             const btn = event.target;
-            const origin = btn.innerText;
-            btn.innerText = "✅ 复制成功";
-            setTimeout(() => btn.innerText = origin, 1200);
+            const original = btn.innerText;
+            btn.innerText = "✅ 成功！";
+            setTimeout(() => btn.innerText = original, 1200);
         });
     }
 </script>
