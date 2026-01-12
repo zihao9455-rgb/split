@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkFormatter | 微信店铺链接提取</title>
+    <style>
+        :root {
+            --primary-color: #07c160;
+            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --card-bg: rgba(255, 255, 255, 0.7);
+            --text-main: #2c3e50;
+            --text-sub: #7f8c8d;
+            --card-inner: white;
+            --border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-gradient: linear-gradient(135deg, #1a1c20 0%, #0f1013 100%);
+                --card-bg: rgba(30, 32, 35, 0.8);
+                --text-main: #e0e0e0;
+                --text-sub: #999;
+                --card-inner: #25282c;
+                --border-color: rgba(255, 255, 255, 0.05);
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: var(--text-main);
+            transition: background 0.5s ease;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 1100px;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .header { text-align: center; margin-bottom: 10px; }
+        .header h1 { color: var(--text-main); margin: 0; font-weight: 600; font-size: 24px; }
+        .header p { color: var(--text-sub); font-size: 14px; }
+
+        .main-content { display: flex; flex-direction: row; gap: 24px; }
+        @media (max-width: 768px) { .main-content { flex-direction: column; } }
+
+        .input-panel, .output-panel { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+
+        textarea {
+            width: 100%;
+            height: 350px;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(0,0,0,0.1);
+            background: var(--card-inner);
+            color: var(--text-main);
+            font-size: 15px;
+            resize: none;
+            box-sizing: border-box;
+            outline: none;
+            transition: all 0.3s;
+            line-height: 1.6;
+        }
+        textarea:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(7, 193, 96, 0.1); }
+
+        .btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        .btn:active { transform: scale(0.98); }
+
+        .result-card {
+            background: var(--card-inner);
+            padding: 15px;
+            border-radius: 12px;
+            min-height: 120px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid rgba(0,0,0,0.05);
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: var(--text-main);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .label-row { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; }
+        .label-row span { font-weight: 600; color: var(--text-main); font-size: 14px; }
+        
+        .copy-btn {
+            background: rgba(7, 193, 96, 0.1);
+            color: var(--primary-color);
+            border: none;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .copy-btn:hover { background: rgba(7, 193, 96, 0.2); }
+
+        .link-text { color: #3498db; font-family: monospace; }
+        @media (prefers-color-scheme: dark) { .link-text { color: #5dade2; } }
+
+        .stats { font-size: 12px; color: var(--text-sub); }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="header">
+        <h1>🔗 LinkFormatter Pro</h1>
+        <p>微信店铺链接提取与文案净化工具</p>
+    </div>
+
+    <div class="main-content">
+        <div class="input-panel">
+            <div class="label-row">
+                <span>原始混合文本</span>
+                <span class="stats" id="inputStats">字数: 0</span>
+            </div>
+            <textarea id="input" placeholder="请在此粘贴包含 weixinstorehs/数字 的多段文案..." oninput="updateStats()"></textarea>
+            <button class="btn" onclick="process()">⚡ 立即提取分离</button>
+        </div>
+
+        <div class="output-panel" id="outputSection" style="display: none;">
+            <div class="label-row">
+                <span>净化后的文案</span>
+                <button class="copy-btn" onclick="copy('pureText')">复制文本</button>
+            </div>
+            <div id="pureText" class="result-card"></div>
+
+            <div class="label-row" style="margin-top: 10px;">
+                <span>提取的店铺链接</span>
+                <button class="copy-btn" onclick="copy('links')">复制全部链接</button>
+            </div>
+            <div id="links" class="result-card link-text"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateStats() {
+        const text = document.getElementById('input').value;
+        document.getElementById('inputStats').innerText = `字数: ${text.length}`;
+    }
+
+    function process() {
+        const input = document.getElementById('input').value;
+        if (!input.trim()) return;
+
+        // 【核心修改】精准匹配 weixinstorehs/数字 格式
+        const urlRegex = /(weixinstorehs\/\d+)/g;
+        
+        // 1. 提取所有链接
+        const rawLinks = input.match(urlRegex) || [];
+        
+        // 2. 自动去重：利用 Set 数据结构去掉重复的链接
+        const uniqueLinks = [...new Set(rawLinks)];
+        
+        // 3. 生成纯文字：将链接替换为占位符
+        const cleanText = input.replace(urlRegex, ' [店铺链接] ');
+
+        // 4. 渲染到页面
+        document.getElementById('pureText').innerText = cleanText;
+        document.getElementById('links').innerText = uniqueLinks.join('\n');
+        
+        // 显示结果面板
+        document.getElementById('outputSection').style.display = 'flex';
+        
+        // 移动端平滑滚动
+        if(window.innerWidth < 768) {
+            document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    async function copy(id) {
+        const text = document.getElementById(id).innerText;
+        try {
+            await navigator.clipboard.writeText(text);
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = '已复制！';
+            setTimeout(() => btn.innerText = originalText, 1500);
+        } catch (err) {
+            alert('复制失败，请手动选择复制');
+        }
+    }
+</script>
+
+</body>
+</html>
