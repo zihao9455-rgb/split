@@ -3,283 +3,256 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LinkFormatter Pro | 3字查重旗舰版</title>
+    <title>文本重复项分析与链接提取</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root {
-            --primary-color: #007aff;
-            --danger-color: #ff3b30;
-            --success-color: #34c759;
-            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            --card-bg: rgba(255, 255, 255, 0.85);
-            --text-main: #1c1c1e;
-            --card-inner: #ffffff;
-        }
-
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg-gradient: linear-gradient(135deg, #1a1c20 0%, #0f1013 100%);
-                --card-bg: rgba(28, 28, 30, 0.9);
-                --text-main: #f2f2f7;
-                --card-inner: #1c1c1e;
-            }
-        }
-
-        body, html {
-            height: 100%;
-            margin: 0;
-            overflow: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: var(--bg-gradient);
-        }
-
-        .app-container {
-            height: 96vh;
-            width: 98vw;
-            margin: 2vh auto;
-            background: var(--card-bg);
-            backdrop-filter: blur(40px);
-            border-radius: 20px;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 10px 50px rgba(0,0,0,0.2);
-        }
-
-        .header {
-            padding: 12px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(0,0,0,0.1);
-        }
-
-        .main-content {
-            flex: 1;
-            display: flex;
-            padding: 15px;
-            gap: 15px;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+        
+        body {
+            font-family: 'Inter', "Microsoft YaHei", sans-serif;
+            height: 100vh;
             overflow: hidden;
         }
 
-        .panel { display: flex; flex-direction: column; gap: 8px; }
-        .input-panel { flex: 2; } 
-        .output-panel { flex: 1.1; }
-
-        .label-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: 800;
-            color: var(--text-main);
-            font-size: 15px;
+        /* 自定义滚动条样式 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
         }
 
-        /* 针对远距离观看优化的输入框 */
-        textarea {
-            flex: 1;
-            width: 100%;
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid rgba(0,0,0,0.1);
-            background: var(--card-inner);
-            color: var(--text-main);
-            font-size: 19px; 
-            font-weight: 800; 
-            line-height: 1.7;
-            resize: none;
-            outline: none;
-            box-sizing: border-box;
-            transition: all 0.2s;
-        }
-        textarea:focus { border-color: var(--primary-color); box-shadow: 0 0 0 4px rgba(0,122,255,0.1); }
-
-        .result-card {
-            flex: 1;
-            background: var(--card-inner);
-            padding: 15px;
-            border-radius: 12px;
-            overflow-y: auto;
-            border: 1px solid rgba(0,0,0,0.05);
+        .highlight-box {
             white-space: pre-wrap;
             word-break: break-all;
-            font-size: 17px;
-            font-weight: 800;
-            line-height: 1.7;
+            line-height: 1.8;
         }
 
-        #links {
-            flex: 0.6;
-            background: rgba(0, 122, 255, 0.08);
-            color: var(--primary-color);
-            border: 1px dashed var(--primary-color);
-        }
-
-        /* 核心动作按钮 */
-        .copy-link-btn {
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 18px;
-            border-radius: 12px;
-            font-size: 18px;
-            font-weight: 800;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
-            transition: transform 0.1s;
-        }
-        .copy-link-btn:active { transform: scale(0.97); }
-
-        .duplicate-tag {
-            padding: 0 2px;
+        mark {
             border-radius: 4px;
-            text-decoration: underline;
-        }
-
-        .secondary-btn {
-            background: rgba(0,0,0,0.05);
-            border: 1px solid rgba(0,0,0,0.1);
-            color: var(--text-main);
-            padding: 5px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 700;
-            cursor: pointer;
+            padding: 0 2px;
+            color: inherit;
         }
     </style>
 </head>
-<body>
+<body class="bg-slate-50 text-slate-900">
 
-<div class="app-container">
-    <div class="header">
-        <span style="font-size: 20px; font-weight: 900;">🚀 生产力终端 | 3字查重版</span>
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <span style="font-size: 12px; opacity: 0.5;">白名单: 用这个、新链接</span>
-            <button class="secondary-btn" onclick="clearAll()">🗑️ 清空内容</button>
-        </div>
+    <div class="flex flex-col h-screen">
+        <!-- 导航栏 -->
+        <header class="bg-white border-b px-6 py-4 flex justify-between items-center shadow-sm z-10">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.3-4.3"/><circle cx="10" cy="10" r="7"/><path d="M7 9h5"/><path d="M10 7v5"/></svg>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight">文本分析助手</h1>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="clearText()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors">
+                    清除内容
+                </button>
+                <button onclick="processText()" class="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-all">
+                    立即分析
+                </button>
+            </div>
+        </header>
+
+        <!-- 主体内容 -->
+        <main class="flex-1 flex overflow-hidden p-4 gap-4">
+            
+            <!-- 左侧：文本输入区 -->
+            <div class="flex-1 flex flex-col bg-white rounded-xl border shadow-sm overflow-hidden">
+                <div class="px-4 py-2 border-b bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    输入待处理文本
+                </div>
+                <textarea id="inputText" class="flex-1 p-4 outline-none resize-none text-slate-700 leading-relaxed custom-scrollbar" placeholder="在此粘贴文字内容..."></textarea>
+            </div>
+
+            <!-- 右侧：结果展示区 -->
+            <div class="flex-1 flex flex-col gap-4 overflow-hidden">
+                
+                <!-- 链接提取列表 -->
+                <div class="h-1/3 flex flex-col bg-white rounded-xl border shadow-sm overflow-hidden">
+                    <div class="px-4 py-2 border-b bg-slate-50 flex justify-between items-center">
+                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">提取的链接 (weixinstore)</span>
+                        <span id="linkCount" class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-bold">0</span>
+                    </div>
+                    <div id="linksOutput" class="flex-1 p-4 overflow-y-auto custom-scrollbar text-sm text-blue-600 underline space-y-1 font-mono">
+                        <p class="text-slate-400 italic">尚未提取到链接</p>
+                    </div>
+                </div>
+
+                <!-- 重复项高亮展示 -->
+                <div class="flex-1 flex flex-col bg-white rounded-xl border shadow-sm overflow-hidden">
+                    <div class="px-4 py-2 border-b bg-slate-50 flex justify-between items-center">
+                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">两字及以上重复项分析 (已排除白名单)</span>
+                        <div class="flex gap-2">
+                            <span id="repeatCount" class="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-bold">0 个重复模式</span>
+                        </div>
+                    </div>
+                    <div id="highlightResult" class="flex-1 p-6 overflow-y-auto custom-scrollbar highlight-box text-slate-700">
+                        <p class="text-slate-400 italic">分析结果将显示在这里...</p>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- 页脚状态栏 -->
+        <footer class="bg-white border-t px-6 py-2 text-xs text-slate-400 flex justify-between items-center">
+            <span>支持 weixinstore 链接提取 | 重复项阈值: 2字 (排除: 用这, 这个, 链接, 换新)</span>
+            <span id="charCount">当前字数: 0</span>
+        </footer>
     </div>
 
-    <div class="main-content">
-        <div class="panel input-panel">
-            <div class="label-row">
-                <span>文案输入区</span>
-                <span id="stat" style="font-size: 12px; opacity: 0.5;">等待粘贴...</span>
-            </div>
-            <textarea id="input" placeholder="在此粘贴原始文案..." oninput="process()"></textarea>
-        </div>
+    <script>
+        // 预定义的高亮颜色库
+        const colors = [
+            '#FFEBEE', '#F3E5F5', '#E8EAF6', '#E3F2FD', '#E0F2F1', '#F1F8E9', 
+            '#FFFDE7', '#FFF3E0', '#EFEBE9', '#FFD54F', '#81C784', '#64B5F6',
+            '#BA68C8', '#FF8A65', '#DCE775', '#A1887F', '#90A4AE', '#FFCDD2'
+        ];
 
-        <div class="panel output-panel">
-            <div class="label-row">
-                <span>查重预览 (3字以上重复标色)</span>
-                <button class="secondary-btn" onclick="copyText('pureText')">复制结果</button>
-            </div>
-            <div id="pureText" class="result-card"></div>
-            
-            <div class="label-row" style="margin-top: 10px;">
-                <span>提取到的链接</span>
-            </div>
-            <div id="links" class="result-card"></div>
-            
-            <button class="copy-link-btn" onclick="copyText('links')">🔗 一键复制提取的链接</button>
-        </div>
-    </div>
-</div>
+        // 白名单词汇：即使重复也不会被高亮
+        const whitelist = ['用这', '这个', '链接', '换新', '换新链接', '链接换新', '备用链接', '价格'];
 
-<script>
-    // 1. 白名单配置
-    const whitelist = ["用这个", "新链接"];
-    
-    // 2. 质感配色
-    const colorPalette = [
-        { t: "#ff3b30", b: "rgba(255, 59, 48, 0.2)" },
-        { t: "#5856d6", b: "rgba(88, 86, 214, 0.2)" },
-        { t: "#ff9500", b: "rgba(255, 149, 0, 0.2)" },
-        { t: "#34c759", b: "rgba(52, 199, 89, 0.2)" },
-        { t: "#af52de", b: "rgba(175, 82, 222, 0.2)" },
-        { t: "#5ac8fa", b: "rgba(90, 200, 250, 0.2)" }
-    ];
-
-    function clearAll() {
-        document.getElementById('input').value = "";
-        process();
-    }
-
-    function process() {
-        const input = document.getElementById('input').value;
-        document.getElementById('stat').innerText = `已输入 ${input.length} 字`;
-        
-        if (!input.trim()) {
-            document.getElementById('pureText').innerHTML = "";
-            document.getElementById('links').innerText = "";
-            return;
+        // 清除文本和结果
+        function clearText() {
+            document.getElementById('inputText').value = '';
+            document.getElementById('linksOutput').innerHTML = '<p class="text-slate-400 italic">尚未提取到链接</p>';
+            document.getElementById('highlightResult').innerHTML = '<p class="text-slate-400 italic">分析结果将显示在这里...</p>';
+            document.getElementById('linkCount').innerText = '0';
+            document.getElementById('repeatCount').innerText = '0 个重复模式';
+            updateCharCount();
         }
 
-        // 提取链接
-        const urlRegex = /(weixinstore[^\s\u4e00-\u9fa5]+)/g;
-        const allLinks = input.match(urlRegex) || [];
-        const uniqueLinks = [...new Set(allLinks)];
-        
-        // 核心算法：提取长度 >= 3 的重复汉字片段
-        const textOnly = input.replace(urlRegex, ' ');
-        const duplicates = findDuplicates(textOnly, 3);
+        // 更新字数统计
+        function updateCharCount() {
+            const text = document.getElementById('inputText').value;
+            document.getElementById('charCount').innerText = `当前字数: ${text.length}`;
+        }
 
-        // 建立颜色映射
-        const colorMap = {};
-        duplicates.forEach((word, i) => {
-            colorMap[word] = colorPalette[i % colorPalette.length];
-        });
+        document.getElementById('inputText').addEventListener('input', updateCharCount);
 
-        // 渲染处理结果
-        let html = input.replace(urlRegex, ' <span style="color:#007aff; opacity:0.6;">[链接]</span> ');
-        
-        // 按长度倒序替换，防止子串干扰长串（例如重复了“羊胎素精华”，则不单独标红“羊胎素”）
-        duplicates.sort((a, b) => b.length - a.length).forEach(word => {
-            const c = colorMap[word];
-            const regex = new RegExp(word, 'g');
-            html = html.replace(regex, `<span class="duplicate-tag" style="color:${c.t}; background:${c.b};">${word}</span>`);
-        });
+        // 主处理逻辑
+        function processText() {
+            const text = document.getElementById('inputText').value;
+            if (!text.trim()) return;
 
-        document.getElementById('pureText').innerHTML = html;
-        document.getElementById('links').innerText = uniqueLinks.join('\n');
-    }
+            // 执行提取链接和高亮分析
+            extractLinks(text);
+            highlightRepeats(text);
+        }
 
-    // 滑动窗口查找重复项算法
-    function findDuplicates(text, minLen) {
-        const counts = {};
-        const results = [];
-        
-        // 扫描长度从 minLen 到 10 的所有可能词组
-        for (let len = minLen; len <= 10; len++) {
-            for (let i = 0; i <= text.length - len; i++) {
-                const sub = text.substr(i, len);
-                // 仅匹配纯汉字，且不在白名单内
-                if (/^[\u4e00-\u9fa5]+$/.test(sub) && !whitelist.some(w => sub.includes(w))) {
-                    counts[sub] = (counts[sub] || 0) + 1;
+        // 提取以 weixinstore 开头的链接
+        function extractLinks(text) {
+            const linkRegex = /weixinstore[a-zA-Z0-9.\-_~:/?#[\]@!$&'()*+,;=]+/g;
+            const matches = text.match(linkRegex) || [];
+            const output = document.getElementById('linksOutput');
+            const countBadge = document.getElementById('linkCount');
+
+            if (matches.length === 0) {
+                output.innerHTML = '<p class="text-slate-400 italic">未发现相关链接</p>';
+                countBadge.innerText = '0';
+                return;
+            }
+
+            const uniqueLinks = [...new Set(matches)];
+            countBadge.innerText = uniqueLinks.length;
+            output.innerHTML = uniqueLinks.map(link => `
+                <div class="break-all py-1 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
+                    <a href="${link.startsWith('http') ? link : 'https://' + link}" target="_blank">${link}</a>
+                </div>
+            `).join('');
+        }
+
+        // 查找重复项并进行颜色标注
+        function highlightRepeats(text) {
+            const minLen = 2; 
+            let repeats = new Map();
+            
+            // 为了性能，设定最大检测长度
+            const maxScanLen = Math.min(text.length / 2, 20);
+
+            // 从长到短进行滑动窗口扫描
+            for (let len = Math.floor(maxScanLen); len >= minLen; len--) {
+                for (let i = 0; i <= text.length - len; i++) {
+                    let sub = text.substring(i, i + len);
+                    
+                    // 只处理纯汉字
+                    if (!/^[\u4e00-\u9fa5]+$/.test(sub)) continue;
+                    
+                    // 检查是否在白名单中
+                    if (whitelist.includes(sub)) continue;
+                    
+                    // 避免长项被包含在已有的更长项中
+                    let alreadyCovered = false;
+                    for (let existing of repeats.keys()) {
+                        if (existing.includes(sub)) {
+                            alreadyCovered = true;
+                            break;
+                        }
+                    }
+                    if (alreadyCovered) continue;
+
+                    // 计算该子串在全文中出现的次数
+                    let count = 0;
+                    let pos = text.indexOf(sub);
+                    while (pos !== -1) {
+                        count++;
+                        pos = text.indexOf(sub, pos + 1);
+                    }
+
+                    if (count > 1) {
+                        repeats.set(sub, count);
+                    }
                 }
             }
-        }
 
-        // 找出出现次数 > 1 的词
-        const allDups = Object.keys(counts).filter(k => counts[k] > 1);
-        
-        // 过滤包含关系：如果“羊胎素精华”重复了，就不需要单独显示“羊胎素”重复
-        allDups.sort((a, b) => b.length - a.length).forEach(word => {
-            if (!results.some(r => r.includes(word))) {
-                results.push(word);
+            const repeatKeys = Array.from(repeats.keys());
+            document.getElementById('repeatCount').innerText = `${repeatKeys.length} 个重复模式`;
+
+            if (repeatKeys.length === 0) {
+                document.getElementById('highlightResult').innerText = text;
+                return;
             }
-        });
-        
-        return results;
-    }
 
-    function copyText(id) {
-        const text = document.getElementById(id).innerText;
-        navigator.clipboard.writeText(text).then(() => {
-            const btn = event.target;
-            const original = btn.innerText;
-            btn.innerText = "✅ 成功！";
-            setTimeout(() => btn.innerText = original, 1200);
-        });
-    }
-</script>
+            // 安全转义文本
+            let displayHTML = text.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+            
+            // 按照长度降序排列模式，确保替换逻辑的正确性
+            repeatKeys.sort((a, b) => b.length - a.length);
 
+            // 使用占位符防止 HTML 标签嵌套污染
+            const placeholders = [];
+            repeatKeys.forEach((pattern, idx) => {
+                const color = colors[idx % colors.length];
+                const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(escapedPattern, 'g');
+                
+                const placeholder = `___REMARK_${idx}___`;
+                placeholders.push({
+                    id: placeholder,
+                    html: `<mark style="background-color: ${color}; border-bottom: 2px solid rgba(0,0,0,0.1);" title="出现次数: ${repeats.get(pattern)}">${pattern}</mark>`
+                });
+
+                displayHTML = displayHTML.replace(regex, placeholder);
+            });
+
+            // 将占位符还原为真正的带颜色标签
+            placeholders.forEach(p => {
+                const regex = new RegExp(p.id, 'g');
+                displayHTML = displayHTML.replace(regex, p.html);
+            });
+
+            document.getElementById('highlightResult').innerHTML = displayHTML;
+        }
+    </script>
 </body>
 </html>
