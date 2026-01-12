@@ -14,7 +14,6 @@
             overflow: hidden;
         }
 
-        /* 自定义滚动条样式 */
         .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
         }
@@ -35,182 +34,223 @@
             line-height: 1.8;
         }
 
+        /* 支持嵌套标注的样式 */
         mark {
             border-radius: 4px;
             padding: 0 2px;
             color: inherit;
+            box-shadow: inset 0 -2px 0 rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+        
+        mark mark {
+            background-color: rgba(0,0,0,0.1) !important;
+            border: 1px dashed rgba(0,0,0,0.3);
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #334155;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 50;
         }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
 
+    <div id="toast">复制成功！</div>
+
     <div class="flex flex-col h-screen">
         <!-- 导航栏 -->
-        <header class="bg-white border-b px-6 py-4 flex justify-between items-center shadow-sm z-10">
+        <header class="bg-white border-b px-6 py-3 flex flex-wrap justify-between items-center shadow-sm z-10 gap-4">
             <div class="flex items-center gap-2">
                 <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.3-4.3"/><circle cx="10" cy="10" r="7"/><path d="M7 9h5"/><path d="M10 7v5"/></svg>
                 </div>
-                <h1 class="text-xl font-bold tracking-tight">文本分析助手</h1>
+                <h1 class="text-lg font-bold tracking-tight">文本分析助手</h1>
             </div>
-            <div class="flex gap-3">
-                <button onclick="clearText()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors">
-                    清除内容
+
+            <!-- 白名单编辑器 -->
+            <div class="flex-1 max-w-2xl px-4">
+                <div class="flex items-center gap-2 bg-slate-100 rounded-lg px-3 py-1.5 border">
+                    <span class="text-xs font-bold text-slate-500 whitespace-nowrap">白名单:</span>
+                    <input type="text" id="whitelistInput" 
+                        class="bg-transparent border-none outline-none text-sm w-full text-slate-700" 
+                        value="备, 接, 用这, 这个, 链接, 换新, 价格, 新, 链"
+                        placeholder="输入屏蔽词...">
+                </div>
+                <p class="text-[10px] text-slate-400 mt-1">* 规则：支持嵌套检测。包含白名单字符的项不标注。链接替换为 &lt;链接&gt;。</p>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="clearText()" class="px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors">
+                    清除
                 </button>
-                <button onclick="processText()" class="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-all">
-                    立即分析
+                <button onclick="processText()" class="px-5 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-all">
+                    开始分析
                 </button>
             </div>
         </header>
 
         <!-- 主体内容 -->
         <main class="flex-1 flex overflow-hidden p-4 gap-4">
-            
-            <!-- 左侧：文本输入区 -->
+            <!-- 左侧：输入 -->
             <div class="flex-1 flex flex-col bg-white rounded-xl border shadow-sm overflow-hidden">
-                <div class="px-4 py-2 border-b bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    输入待处理文本
+                <div class="px-4 py-2 border-b bg-slate-50 text-xs font-semibold text-slate-500 uppercase flex justify-between">
+                    <span>原始文本</span>
+                    <span id="charCount">0 字</span>
                 </div>
-                <textarea id="inputText" class="flex-1 p-4 outline-none resize-none text-slate-700 leading-relaxed custom-scrollbar" placeholder="在此粘贴文字内容..."></textarea>
+                <textarea id="inputText" class="flex-1 p-4 outline-none resize-none text-slate-700 leading-relaxed custom-scrollbar" placeholder="粘贴内容..."></textarea>
             </div>
 
-            <!-- 右侧：结果展示区 -->
+            <!-- 右侧：结果 -->
             <div class="flex-1 flex flex-col gap-4 overflow-hidden">
-                
-                <!-- 链接提取列表 -->
+                <!-- 链接面板 -->
                 <div class="h-1/3 flex flex-col bg-white rounded-xl border shadow-sm overflow-hidden">
                     <div class="px-4 py-2 border-b bg-slate-50 flex justify-between items-center">
-                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">提取的链接 (weixinstore)</span>
-                        <span id="linkCount" class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-bold">0</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">提取链接原文</span>
+                            <span id="linkCount" class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-bold">0</span>
+                        </div>
+                        <button id="copyBtn" onclick="copyLinks()" class="hidden text-[11px] bg-white border border-slate-200 px-2 py-1 rounded hover:bg-slate-50">
+                            一键复制全部
+                        </button>
                     </div>
-                    <div id="linksOutput" class="flex-1 p-4 overflow-y-auto custom-scrollbar text-sm text-blue-600 underline space-y-1 font-mono">
-                        <p class="text-slate-400 italic">尚未提取到链接</p>
+                    <div id="linksOutput" class="flex-1 p-4 overflow-y-auto custom-scrollbar text-sm text-blue-600 font-mono">
+                        <p class="text-slate-400 italic text-xs">尚未提取到链接</p>
                     </div>
                 </div>
 
-                <!-- 重复项高亮展示 -->
+                <!-- 重复项面板 -->
                 <div class="flex-1 flex flex-col bg-white rounded-xl border shadow-sm overflow-hidden">
                     <div class="px-4 py-2 border-b bg-slate-50 flex justify-between items-center">
-                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">两字及以上重复项分析 (已排除白名单)</span>
-                        <div class="flex gap-2">
-                            <span id="repeatCount" class="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-bold">0 个重复模式</span>
-                        </div>
+                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">重复高亮 (支持嵌套)</span>
+                        <span id="repeatCount" class="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-bold">0 个重复</span>
                     </div>
                     <div id="highlightResult" class="flex-1 p-6 overflow-y-auto custom-scrollbar highlight-box text-slate-700">
-                        <p class="text-slate-400 italic">分析结果将显示在这里...</p>
+                        <p class="text-slate-400 italic text-xs">分析结果将显示在这里...</p>
                     </div>
                 </div>
-
             </div>
         </main>
-
-        <!-- 页脚状态栏 -->
-        <footer class="bg-white border-t px-6 py-2 text-xs text-slate-400 flex justify-between items-center">
-            <span>支持 weixinstore 链接提取 | 重复项阈值: 2字 (排除: 用这, 这个, 链接, 换新)</span>
-            <span id="charCount">当前字数: 0</span>
-        </footer>
     </div>
 
     <script>
-        // 预定义的高亮颜色库
         const colors = [
             '#FFEBEE', '#F3E5F5', '#E8EAF6', '#E3F2FD', '#E0F2F1', '#F1F8E9', 
             '#FFFDE7', '#FFF3E0', '#EFEBE9', '#FFD54F', '#81C784', '#64B5F6',
             '#BA68C8', '#FF8A65', '#DCE775', '#A1887F', '#90A4AE', '#FFCDD2'
         ];
 
-        // 白名单词汇：即使重复也不会被高亮
-        const whitelist = ['用这', '这个', '链接', '换新', '换新链接', '链接换新', '备用链接', '价格'];
+        let currentExtractedLinks = [];
 
-        // 清除文本和结果
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.opacity = '1';
+            setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+        }
+
         function clearText() {
             document.getElementById('inputText').value = '';
-            document.getElementById('linksOutput').innerHTML = '<p class="text-slate-400 italic">尚未提取到链接</p>';
-            document.getElementById('highlightResult').innerHTML = '<p class="text-slate-400 italic">分析结果将显示在这里...</p>';
+            document.getElementById('linksOutput').innerHTML = '<p class="text-slate-400 italic text-xs">尚未提取到链接</p>';
+            document.getElementById('highlightResult').innerHTML = '<p class="text-slate-400 italic text-xs">分析结果将显示在这里...</p>';
             document.getElementById('linkCount').innerText = '0';
-            document.getElementById('repeatCount').innerText = '0 个重复模式';
+            document.getElementById('repeatCount').innerText = '0 个重复';
+            document.getElementById('copyBtn').classList.add('hidden');
+            currentExtractedLinks = [];
             updateCharCount();
         }
 
-        // 更新字数统计
         function updateCharCount() {
             const text = document.getElementById('inputText').value;
-            document.getElementById('charCount').innerText = `当前字数: ${text.length}`;
+            document.getElementById('charCount').innerText = `${text.length} 字`;
         }
 
         document.getElementById('inputText').addEventListener('input', updateCharCount);
 
-        // 主处理逻辑
         function processText() {
             const text = document.getElementById('inputText').value;
             if (!text.trim()) return;
-
-            // 执行提取链接和高亮分析
             extractLinks(text);
             highlightRepeats(text);
         }
 
-        // 提取以 weixinstore 开头的链接
         function extractLinks(text) {
             const linkRegex = /weixinstore[a-zA-Z0-9.\-_~:/?#[\]@!$&'()*+,;=]+/g;
             const matches = text.match(linkRegex) || [];
+            currentExtractedLinks = [...new Set(matches)];
+            document.getElementById('linkCount').innerText = currentExtractedLinks.length;
+            
             const output = document.getElementById('linksOutput');
-            const countBadge = document.getElementById('linkCount');
+            const copyBtn = document.getElementById('copyBtn');
 
-            if (matches.length === 0) {
-                output.innerHTML = '<p class="text-slate-400 italic">未发现相关链接</p>';
-                countBadge.innerText = '0';
+            if (currentExtractedLinks.length === 0) {
+                output.innerHTML = '<p class="text-slate-400 italic text-xs">未发现相关链接</p>';
+                copyBtn.classList.add('hidden');
                 return;
             }
 
-            const uniqueLinks = [...new Set(matches)];
-            countBadge.innerText = uniqueLinks.length;
-            output.innerHTML = uniqueLinks.map(link => `
-                <div class="break-all py-1 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
-                    <a href="${link.startsWith('http') ? link : 'https://' + link}" target="_blank">${link}</a>
+            copyBtn.classList.remove('hidden');
+            output.innerHTML = currentExtractedLinks.map(link => `
+                <div class="break-all py-1 border-b border-slate-50 last:border-0">
+                    <a href="${link.startsWith('http') ? link : 'https://' + link}" target="_blank" class="hover:underline">${link}</a>
                 </div>
             `).join('');
         }
 
-        // 查找重复项并进行颜色标注
+        function copyLinks() {
+            const textToCopy = currentExtractedLinks.join('\n');
+            const textArea = document.createElement("textarea");
+            textArea.value = textToCopy;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showToast("链接已全部复制");
+        }
+
         function highlightRepeats(text) {
+            const whitelistStr = document.getElementById('whitelistInput').value;
+            const userWhitelist = whitelistStr.split(/[,，\s]+/).filter(x => x.length > 0);
+
+            // 1. 替换链接
+            const linkRegex = /weixinstore[a-zA-Z0-9.\-_~:/?#[\]@!$&'()*+,;=]+/g;
+            let processedText = text.replace(linkRegex, '<链接>');
+
+            // 2. 发现所有重复项 (移除 alreadyCovered 限制以支持嵌套识别)
             const minLen = 2; 
             let repeats = new Map();
-            
-            // 为了性能，设定最大检测长度
-            const maxScanLen = Math.min(text.length / 2, 20);
+            const maxScanLen = Math.min(processedText.length, 20);
 
-            // 从长到短进行滑动窗口扫描
             for (let len = Math.floor(maxScanLen); len >= minLen; len--) {
-                for (let i = 0; i <= text.length - len; i++) {
-                    let sub = text.substring(i, i + len);
-                    
-                    // 只处理纯汉字
+                for (let i = 0; i <= processedText.length - len; i++) {
+                    let sub = processedText.substring(i, i + len);
                     if (!/^[\u4e00-\u9fa5]+$/.test(sub)) continue;
-                    
-                    // 检查是否在白名单中
-                    if (whitelist.includes(sub)) continue;
-                    
-                    // 避免长项被包含在已有的更长项中
-                    let alreadyCovered = false;
-                    for (let existing of repeats.keys()) {
-                        if (existing.includes(sub)) {
-                            alreadyCovered = true;
-                            break;
-                        }
-                    }
-                    if (alreadyCovered) continue;
 
-                    // 计算该子串在全文中出现的次数
+                    // 模糊屏蔽
+                    const isForbidden = userWhitelist.some(item => sub.includes(item));
+                    if (isForbidden) continue;
+
                     let count = 0;
-                    let pos = text.indexOf(sub);
+                    let pos = processedText.indexOf(sub);
                     while (pos !== -1) {
                         count++;
-                        pos = text.indexOf(sub, pos + 1);
+                        pos = processedText.indexOf(sub, pos + 1);
                     }
 
                     if (count > 1) {
-                        repeats.set(sub, count);
+                        // 存储重复项，如果已存在同字串则不重复添加
+                        if (!repeats.has(sub)) repeats.set(sub, count);
                     }
                 }
             }
@@ -219,39 +259,69 @@
             document.getElementById('repeatCount').innerText = `${repeatKeys.length} 个重复模式`;
 
             if (repeatKeys.length === 0) {
-                document.getElementById('highlightResult').innerText = text;
+                document.getElementById('highlightResult').innerHTML = formatFinalHTML(processedText);
                 return;
             }
 
-            // 安全转义文本
-            let displayHTML = text.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
-            
-            // 按照长度降序排列模式，确保替换逻辑的正确性
+            // 3. 嵌套渲染逻辑
+            // 按长度从长到短排序
             repeatKeys.sort((a, b) => b.length - a.length);
 
-            // 使用占位符防止 HTML 标签嵌套污染
-            const placeholders = [];
-            repeatKeys.forEach((pattern, idx) => {
-                const color = colors[idx % colors.length];
-                const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const regex = new RegExp(escapedPattern, 'g');
-                
-                const placeholder = `___REMARK_${idx}___`;
-                placeholders.push({
-                    id: placeholder,
-                    html: `<mark style="background-color: ${color}; border-bottom: 2px solid rgba(0,0,0,0.1);" title="出现次数: ${repeats.get(pattern)}">${pattern}</mark>`
-                });
+            // 记录所有待渲染的模式对象
+            let patternObjects = repeatKeys.map((p, i) => ({
+                text: p,
+                id: `___MARK_${i}___`,
+                color: colors[i % colors.length],
+                count: repeats.get(p),
+                html: p // 初始 HTML 就是文本本身
+            }));
 
-                displayHTML = displayHTML.replace(regex, placeholder);
+            // 关键点：让短模式在长模式的 HTML 中再次进行替换（实现嵌套）
+            for (let i = 0; i < patternObjects.length; i++) {
+                let longer = patternObjects[i];
+                for (let j = i + 1; j < patternObjects.length; j++) {
+                    let shorter = patternObjects[j];
+                    // 如果长词包含短词，在长词的 html 属性里进行替换标记
+                    if (longer.text.includes(shorter.text)) {
+                        const regex = new RegExp(shorter.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+                        longer.html = longer.html.replace(regex, shorter.id);
+                    }
+                }
+            }
+
+            // 在全文中进行占位符替换
+            let finalDisplay = processedText.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+            patternObjects.forEach(obj => {
+                const regex = new RegExp(obj.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+                finalDisplay = finalDisplay.replace(regex, obj.id);
             });
 
-            // 将占位符还原为真正的带颜色标签
-            placeholders.forEach(p => {
-                const regex = new RegExp(p.id, 'g');
-                displayHTML = displayHTML.replace(regex, p.html);
-            });
+            // 递归还原所有占位符
+            function resolveMarkers(inputHtml) {
+                let changed = true;
+                while (changed) {
+                    let initial = inputHtml;
+                    patternObjects.forEach(obj => {
+                        const markerHtml = `<mark style="background-color: ${obj.color}" title="模式: ${obj.text} (${obj.count}次)">${obj.html}</mark>`;
+                        inputHtml = inputHtml.split(obj.id).join(markerHtml);
+                    });
+                    if (initial === inputHtml) changed = false;
+                }
+                return inputHtml;
+            }
 
-            document.getElementById('highlightResult').innerHTML = displayHTML;
+            finalDisplay = resolveMarkers(finalDisplay);
+
+            // 美化链接占位符
+            finalDisplay = finalDisplay.replace(/&lt;链接&gt;/g, '<span class="text-blue-600 font-bold border-b border-blue-200">&lt;链接&gt;</span>');
+
+            document.getElementById('highlightResult').innerHTML = finalDisplay;
+        }
+
+        function formatFinalHTML(text) {
+             return text
+                .replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))
+                .replace(/&lt;链接&gt;/g, '<span class="text-blue-600 font-bold border-b border-blue-200">&lt;链接&gt;</span>');
         }
     </script>
 </body>
